@@ -1,0 +1,54 @@
+// Prisma schema for Supabase (PostgreSQL)
+// Replace your existing schema.prisma with this when migrating to Supabase
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  phone     String   @unique
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  appointments Appointment[]
+
+  @@map("customers")
+}
+
+model Appointment {
+  id                      String   @id @default(uuid()) @db.Uuid
+  customerId              String   @map("customer_id") @db.Uuid
+  customer                Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  customerName            String   @map("customer_name")
+  phone                   String
+  email                   String?
+  serviceAddress          String   @map("service_address")
+  jobType                 String   @map("job_type")
+  jobDescription          String   @map("job_description")
+  preferredWindow         String?  @map("preferred_window")
+  notes                   String?
+  
+  status                  String   @default("Scheduled")
+  scheduledArrivalWindow  String?  @map("scheduled_arrival_window")
+  etaMinutes              Int?     @map("eta_minutes")
+  
+  cancellationReason      String?  @map("cancellation_reason")
+  
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  @@index([customerId])
+  @@index([phone])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("appointments")
+}
