@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 const estimateSchema = z.object({
@@ -6,33 +7,43 @@ const estimateSchema = z.object({
   job_description: z.string(),
 })
 
-// Simple pricing logic - can be expanded with more sophisticated rules
-function calculateEstimate(jobType: string, jobDescription: string) {
+async function getPricing() {
+  let settings = await prisma.setting.findUnique({ where: { id: 'default' } })
+  if (!settings) {
+    settings = await prisma.setting.create({ data: { id: 'default' } })
+  }
+  return {
+    drain: { low: settings.pricingDrainClogLow, high: settings.pricingDrainClogHigh },
+    waterHeater: { low: settings.pricingWaterHeaterLow, high: settings.pricingWaterHeaterHigh },
+    pipeLeak: { low: settings.pricingPipeLeakLow, high: settings.pricingPipeLeakHigh },
+    toilet: { low: settings.pricingToiletRepairLow, high: settings.pricingToiletRepairHigh },
+  }
+}
+
+// Pricing logic using database-configured prices
+async function calculateEstimate(jobType: string, jobDescription: string) {
+  const p = await getPricing()
   const lowerJobType = jobType.toLowerCase()
   const lowerDescription = jobDescription.toLowerCase()
 
-  // Base estimates by job type
   let estimateLow = 100
   let estimateHigh = 200
 
   if (lowerJobType.includes('drain') || lowerJobType.includes('clog')) {
-    estimateLow = 150
-    estimateHigh = 300
-  } else if (lowerJobType.includes('leak')) {
-    estimateLow = 200
-    estimateHigh = 400
+    estimateLow = p.drain.low
+    estimateHigh = p.drain.high
   } else if (lowerJobType.includes('water heater')) {
-    estimateLow = 300
-    estimateHigh = 800
+    estimateLow = p.waterHeater.low
+    estimateHigh = p.waterHeater.high
+  } else if (lowerJobType.includes('leak') || lowerJobType.includes('pipe')) {
+    estimateLow = p.pipeLeak.low
+    estimateHigh = p.pipeLeak.high
   } else if (lowerJobType.includes('toilet')) {
-    estimateLow = 150
-    estimateHigh = 350
+    estimateLow = p.toilet.low
+    estimateHigh = p.toilet.high
   } else if (lowerJobType.includes('faucet')) {
     estimateLow = 100
     estimateHigh = 250
-  } else if (lowerJobType.includes('pipe')) {
-    estimateLow = 250
-    estimateHigh = 600
   } else if (lowerJobType.includes('sewer')) {
     estimateLow = 400
     estimateHigh = 1200
@@ -64,7 +75,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = estimateSchema.parse(body)
 
-    const estimate = calculateEstimate(
+    const estimate = await calculateEstimate(
       validatedData.job_type,
       validatedData.job_description
     )

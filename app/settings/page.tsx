@@ -1,24 +1,43 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useState, useEffect } from 'react'
+
+interface BusinessInfo {
+  name: string
+  phone: string
+  email: string
+  address: string
+}
+
+interface Pricing {
+  drainClog: { low: number; high: number }
+  waterHeater: { low: number; high: number }
+  pipeLeak: { low: number; high: number }
+  toiletRepair: { low: number; high: number }
+}
+
+interface Notifications {
+  newAppointments: boolean
+  cancellations: boolean
+  dailySummary: boolean
+}
 
 export default function SettingsPage() {
-  const [businessInfo, setBusinessInfo] = useState({
-    name: 'Plumber Pro Services',
-    phone: '(555) 123-4567',
-    email: 'info@plumberpro.com',
-    address: '123 Main Street, Lansing, MI 48933',
+  const [businessInfo, setBusinessInfo] = useState<BusinessInfo>({
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
   })
 
-  const [pricing, setPricing] = useState({
-    drainClog: { low: 150, high: 300 },
-    waterHeater: { low: 300, high: 800 },
-    pipeLeak: { low: 250, high: 600 },
-    toiletRepair: { low: 150, high: 350 },
+  const [pricing, setPricing] = useState<Pricing>({
+    drainClog: { low: 0, high: 0 },
+    waterHeater: { low: 0, high: 0 },
+    pipeLeak: { low: 0, high: 0 },
+    toiletRepair: { low: 0, high: 0 },
   })
 
-  const [notifications, setNotifications] = useState({
+  const [notifications, setNotifications] = useState<Notifications>({
     newAppointments: true,
     cancellations: true,
     dailySummary: false,
@@ -26,17 +45,86 @@ export default function SettingsPage() {
 
   const [isEditingBusiness, setIsEditingBusiness] = useState(false)
   const [isEditingPricing, setIsEditingPricing] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
 
-  const handleSaveBusinessInfo = () => {
-    // TODO: Save to database/API
-    setIsEditingBusiness(false)
-    alert('Business information saved!')
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.business) setBusinessInfo(data.business)
+        if (data.pricing) setPricing(data.pricing)
+        if (data.notifications) setNotifications(data.notifications)
+      })
+      .catch((err) => console.error('Failed to load settings:', err))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const showSaveMessage = (msg: string) => {
+    setSaveMessage(msg)
+    setTimeout(() => setSaveMessage(null), 3000)
   }
 
-  const handleSavePricing = () => {
-    // TODO: Save to database/API
-    setIsEditingPricing(false)
-    alert('Pricing configuration saved!')
+  const handleSaveBusinessInfo = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business: businessInfo }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setIsEditingBusiness(false)
+      showSaveMessage('Business information saved!')
+    } catch {
+      showSaveMessage('Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSavePricing = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pricing }),
+      })
+      if (!res.ok) throw new Error('Save failed')
+      setIsEditingPricing(false)
+      showSaveMessage('Pricing configuration saved!')
+    } catch {
+      showSaveMessage('Failed to save. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleToggleNotification = async (
+    key: keyof Notifications,
+    value: boolean
+  ) => {
+    const updated = { ...notifications, [key]: value }
+    setNotifications(updated)
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifications: updated }),
+      })
+    } catch {
+      setNotifications(notifications)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+        <div className="text-slate-400">Loading settings...</div>
+      </div>
+    )
   }
 
   return (
@@ -49,6 +137,12 @@ export default function SettingsPage() {
           Configure your business settings and preferences
         </p>
       </div>
+
+      {saveMessage && (
+        <div className="surface bg-green-500/10 border-green-500/30 p-3 text-sm text-green-300">
+          {saveMessage}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Business Information */}
@@ -122,8 +216,12 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="flex gap-2">
-                <button onClick={handleSaveBusinessInfo} className="btn-gold-sm">
-                  Save Changes
+                <button
+                  onClick={handleSaveBusinessInfo}
+                  className="btn-gold-sm"
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={() => setIsEditingBusiness(false)}
@@ -319,8 +417,12 @@ export default function SettingsPage() {
               </div>
 
               <div className="flex gap-2">
-                <button onClick={handleSavePricing} className="btn-gold-sm">
-                  Save Changes
+                <button
+                  onClick={handleSavePricing}
+                  className="btn-gold-sm"
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={() => setIsEditingPricing(false)}
@@ -377,10 +479,10 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() =>
-                  setNotifications({
-                    ...notifications,
-                    newAppointments: !notifications.newAppointments,
-                  })
+                  handleToggleNotification(
+                    'newAppointments',
+                    !notifications.newAppointments
+                  )
                 }
                 className={`btn-ghost text-xs ${
                   notifications.newAppointments
@@ -402,10 +504,10 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() =>
-                  setNotifications({
-                    ...notifications,
-                    cancellations: !notifications.cancellations,
-                  })
+                  handleToggleNotification(
+                    'cancellations',
+                    !notifications.cancellations
+                  )
                 }
                 className={`btn-ghost text-xs ${
                   notifications.cancellations
@@ -427,10 +529,10 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() =>
-                  setNotifications({
-                    ...notifications,
-                    dailySummary: !notifications.dailySummary,
-                  })
+                  handleToggleNotification(
+                    'dailySummary',
+                    !notifications.dailySummary
+                  )
                 }
                 className={`btn-ghost text-xs ${
                   notifications.dailySummary
@@ -454,13 +556,13 @@ export default function SettingsPage() {
           </p>
           <div className="space-y-3">
             <button className="btn-ghost w-full justify-start">
-              📊 View Database Statistics
+              View Database Statistics
             </button>
             <button className="btn-ghost w-full justify-start">
-              💾 Backup Database
+              Backup Database
             </button>
             <button className="btn-ghost w-full justify-start">
-              🔄 Reset Sample Data
+              Reset Sample Data
             </button>
           </div>
         </div>

@@ -53,3 +53,25 @@ model Appointment {
   @@index([createdAt(sort: Desc)])
   @@map("appointments")
 }
+
+model Setting {
+  id                String   @id @default("default")
+  businessName      String   @default("Plumber Pro Services") @map("business_name")
+  businessPhone     String   @default("(555) 123-4567") @map("business_phone")
+  businessEmail     String   @default("info@plumberpro.com") @map("business_email")
+  businessAddress   String   @default("123 Main Street, Lansing, MI 48933") @map("business_address")
+  pricingDrainClogLow     Int @default(150) @map("pricing_drain_clog_low")
+  pricingDrainClogHigh    Int @default(300) @map("pricing_drain_clog_high")
+  pricingWaterHeaterLow   Int @default(300) @map("pricing_water_heater_low")
+  pricingWaterHeaterHigh  Int @default(800) @map("pricing_water_heater_high")
+  pricingPipeLeakLow      Int @default(250) @map("pricing_pipe_leak_low")
+  pricingPipeLeakHigh     Int @default(600) @map("pricing_pipe_leak_high")
+  pricingToiletRepairLow  Int @default(150) @map("pricing_toilet_repair_low")
+  pricingToiletRepairHigh Int @default(350) @map("pricing_toilet_repair_high")
+  notifyNewAppointments   Boolean @default(true) @map("notify_new_appointments")
+  notifyCancellations     Boolean @default(true) @map("notify_cancellations")
+  notifyDailySummary      Boolean @default(false) @map("notify_daily_summary")
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("settings")
+}

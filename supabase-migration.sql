@@ -190,3 +190,41 @@ GRANT SELECT ON appointment_stats TO anon, authenticated;
 COMMENT ON TABLE customers IS 'Customer information for the plumbing business';
 COMMENT ON TABLE appointments IS 'Service appointments and job details';
 COMMENT ON VIEW appointment_stats IS 'Real-time statistics for the dashboard';
+
+-- ============================================
+-- Settings table (added for persistent config)
+-- ============================================
+CREATE TABLE IF NOT EXISTS settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  business_name TEXT NOT NULL DEFAULT 'Plumber Pro Services',
+  business_phone TEXT NOT NULL DEFAULT '(555) 123-4567',
+  business_email TEXT NOT NULL DEFAULT 'info@plumberpro.com',
+  business_address TEXT NOT NULL DEFAULT '123 Main Street, Lansing, MI 48933',
+  pricing_drain_clog_low INTEGER NOT NULL DEFAULT 150,
+  pricing_drain_clog_high INTEGER NOT NULL DEFAULT 300,
+  pricing_water_heater_low INTEGER NOT NULL DEFAULT 300,
+  pricing_water_heater_high INTEGER NOT NULL DEFAULT 800,
+  pricing_pipe_leak_low INTEGER NOT NULL DEFAULT 250,
+  pricing_pipe_leak_high INTEGER NOT NULL DEFAULT 600,
+  pricing_toilet_repair_low INTEGER NOT NULL DEFAULT 150,
+  pricing_toilet_repair_high INTEGER NOT NULL DEFAULT 350,
+  notify_new_appointments BOOLEAN NOT NULL DEFAULT true,
+  notify_cancellations BOOLEAN NOT NULL DEFAULT true,
+  notify_daily_summary BOOLEAN NOT NULL DEFAULT false,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Insert default settings row
+INSERT INTO settings (id) VALUES ('default') ON CONFLICT (id) DO NOTHING;
+
+-- RLS for settings
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all operations on settings" ON settings
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Updated_at trigger for settings
+DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
+CREATE TRIGGER update_settings_updated_at
+  BEFORE UPDATE ON settings
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
